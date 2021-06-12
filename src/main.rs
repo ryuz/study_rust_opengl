@@ -1,19 +1,18 @@
-
 use std::mem;
 use std::os::raw::c_void;
 use std::time::Duration;
 
-use cgmath::Array;
-use cgmath::Matrix;
 use cgmath::perspective;
 use cgmath::prelude::SquareMatrix;
+use cgmath::Array;
+use cgmath::Matrix;
 
+use gl::types::*;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
 mod draw_gl;
 mod mesh_obj;
-
 
 //#[allow(dead_code)]
 type Point3 = cgmath::Point3<f32>;
@@ -22,23 +21,20 @@ type Vector3 = cgmath::Vector3<f32>;
 #[allow(dead_code)]
 type Matrix4 = cgmath::Matrix4<f32>;
 
-
-fn main()
-{
+fn main() {
     // メッシュ準備
-    let mesh:Box<mesh_obj::Mesh<f32>>;
+    let mesh: Box<mesh_obj::Mesh<f32>>;
     let mesh_scale: f32;
-    if true {
+    if false {
         mesh = mesh_obj::Mesh::<f32>::load("miku.obj").unwrap();
         mesh_scale = 10.0;
-    }
-    else {
-       mesh = mesh_obj::Mesh::<f32>::load("unity_chan.obj").unwrap();
-       mesh_scale = 300.0;
+    } else {
+        mesh = mesh_obj::Mesh::<f32>::load("unity_chan.obj").unwrap();
+        mesh_scale = 300.0;
     }
 
-    let window_width:u32 = 640;
-    let window_height :u32 = 480;
+    let window_width: u32 = 640;
+    let window_height: u32 = 480;
 
     // SDL open
     let sdl_context = sdl2::init().unwrap();
@@ -60,16 +56,18 @@ fn main()
     let _gl_context = window.gl_create_context().unwrap();
     gl::load_with(|s| video_subsystem.gl_get_proc_address(s) as _);
 
-
     // シェーダー準備
     let vertes_shader = draw_gl::Shader::from_code(VERTEX_SHADER_CODE, gl::VERTEX_SHADER).unwrap();
-    let fragment_shader = draw_gl::Shader::from_code(FRAGMENT_SHADER_CODE, gl::FRAGMENT_SHADER).unwrap();
+    let fragment_shader =
+        draw_gl::Shader::from_code(FRAGMENT_SHADER_CODE, gl::FRAGMENT_SHADER).unwrap();
     let program = draw_gl::Program::from_shaders(vec![vertes_shader, fragment_shader]).unwrap();
 
     let uniform_model = program.get_uniform_location("matrix_model");
     let uniform_view = program.get_uniform_location("matrix_view");
     let uniform_projection = program.get_uniform_location("matrix_projection");
     let uniform_color = program.get_uniform_location("color");
+    let uniform_texture_sampler = program.get_uniform_location("texture_sampler");
+    let uniform_texture_enable = program.get_uniform_location("texture_enable");
 
     let attrib_position = program.get_attrib_location("position");
     let attrib_normal = program.get_attrib_location("normal");
@@ -77,6 +75,8 @@ fn main()
 
     // 頂点バッファ転送
     let mut vbo: u32 = 0;
+
+    let face_info = mesh.get_surface_info();
     unsafe {
         let mut vertex_array: Vec<f32> = mesh.get_vertex_array();
 
@@ -90,41 +90,54 @@ fn main()
             gl::STATIC_DRAW,
         );
 
-        gl::EnableVertexAttribArray(0);
-        gl::EnableVertexAttribArray(1);
-        gl::EnableVertexAttribArray(2);
+        gl::EnableVertexAttribArray(attrib_position as GLuint);
         gl::VertexAttribPointer(
-            attrib_position as u32,
+            attrib_position as GLuint,
             3,
             gl::FLOAT,
             gl::FALSE,
             (3 + 3 + 2) * 4,
             0 as *mut c_void,
         );
-        gl::VertexAttribPointer(
-            1,
-            3,
-            gl::FLOAT,
-            gl::FALSE,
-            (3 + 3 + 2) * 4,
-            (3 * 4) as *mut c_void,
-        );
-        gl::VertexAttribPointer(
-            2,
-            2,
-            gl::FLOAT,
-            gl::FALSE,
-            (3 + 3 + 2) * 4,
-            ((3 + 3) * 4) as *mut c_void,
-        );
-
+        if attrib_normal > 0 {
+            gl::EnableVertexAttribArray(attrib_normal as GLuint);
+            gl::VertexAttribPointer(
+                attrib_normal as GLuint,
+                3,
+                gl::FLOAT,
+                gl::FALSE,
+                (3 + 3 + 2) * 4,
+                (3 * 4) as *mut c_void,
+            );
+        }
+        if attrib_texcoord > 0 {
+            gl::EnableVertexAttribArray(attrib_texcoord as GLuint);
+            gl::VertexAttribPointer(
+                attrib_texcoord as GLuint,
+                2,
+                gl::FLOAT,
+                gl::FALSE,
+                (3 + 3 + 2) * 4,
+                ((3 + 3) * 4) as *mut c_void,
+            );
+        }
         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+
+        // テクスチャマッピング準備
+        gl::ActiveTexture(gl::TEXTURE0);
     }
 
+    // テクスチャロード
+    let mut textures = draw_gl::Texturs::new();
+    for (_, material_index) in &face_info {
+        let material = mesh.get_matrial(*material_index);
+        if !material.diffuse_filename.is_empty() {
+            textures.load_file(&material.diffuse_filename);
+        }
+    }
 
-    let face_info = mesh.get_surface_info();
+    // 描画ループ
     let mut look_direction: f32 = 0.0f32;
-
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -139,13 +152,13 @@ fn main()
         }
 
         unsafe {
+            // バッファ初期化
             gl::Viewport(0, 0, window_width as i32, window_height as i32);
-
-            // clear screen
             gl::ClearColor(1.0, 1.0, 1.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             gl::Enable(gl::DEPTH_TEST);
 
+            // 視点等設定
             look_direction += 0.1;
             let model_matrix = Matrix4::identity();
             let view_matrix = Matrix4::look_at_rh(
@@ -165,7 +178,7 @@ fn main()
                     z: 0.0,
                 },
             );
-            
+
             let projection_matrix: Matrix4 = perspective(
                 cgmath::Deg(45.0f32),
                 window_width as f32 / window_height as f32,
@@ -173,20 +186,34 @@ fn main()
                 100.0 * mesh_scale,
             );
 
-            // shader use matrices
+            // シェーダー設定
             program.use_program();
-
             gl::UniformMatrix4fv(uniform_model, 1, gl::FALSE, model_matrix.as_ptr());
             gl::UniformMatrix4fv(uniform_view, 1, gl::FALSE, view_matrix.as_ptr());
             gl::UniformMatrix4fv(uniform_projection, 1, gl::FALSE, projection_matrix.as_ptr());
+            gl::Uniform1i(uniform_texture_sampler, 0);
 
             gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
 
             let mut array_index: i32 = 0;
-            for it in face_info.iter() {
-                let (array_size, material_index) = *it;
-                let material = mesh.get_matrial(material_index);
+            for (array_size, material_index) in &face_info {
+                let material = mesh.get_matrial(*material_index);
 
+                let texture_enable = !&material.diffuse_filename.is_empty();
+                gl::Uniform1i(uniform_texture_enable, if texture_enable {1} else {0});
+                
+                if texture_enable {
+                    // テクスチャがあればバインド
+                    gl::ActiveTexture(gl::TEXTURE0);
+                    textures.get(&material.diffuse_filename).bind();
+                    gl::TexParameteri(gl::TEXTURE_2D, gl::AUTO_GENERATE_MIPMAP, gl::TRUE as GLint);
+                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as GLint);
+                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as GLint);
+                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as GLint);
+                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as GLint);
+                }
+
+                // 色設定
                 let color = Vector3 {
                     x: material.diffuse.x,
                     y: material.diffuse.y,
@@ -194,10 +221,12 @@ fn main()
                 };
                 gl::Uniform3fv(uniform_color, 1, color.as_ptr());
 
+                // 描画
                 gl::DrawArrays(gl::TRIANGLES, array_index, (array_size * 3) as i32);
                 array_index += array_size;
             }
 
+            // バッファスワップ
             window.gl_swap_window();
         }
 
@@ -209,7 +238,7 @@ fn main()
     }
 }
 
-
+// バーテックスシェーダー
 const VERTEX_SHADER_CODE: &str = r#"
 #version 100 
 
@@ -230,16 +259,19 @@ void main()
 {
     vary_color = vec4(color.x, color.y, color.z, 1);
     vary_norm  = normal;
-    vary_texcoord  = texcoord;
+    vary_texcoord = texcoord;
 
     vec3 frag_position = vec3(matrix_model * vec4(position, 1.0));
     gl_Position = matrix_projection * matrix_view * vec4(frag_position, 1.0);
 }
 "#;
 
-
+// フラグメントシェーダー
 const FRAGMENT_SHADER_CODE: &str = r#"
 #version 100
+
+uniform sampler2D texture_sampler;
+uniform bool texture_enable;
 
 varying lowp vec4 vary_color;
 varying lowp vec3 vary_norm;
@@ -247,7 +279,11 @@ varying lowp vec2 vary_texcoord;
 
 void main()
 {
-    gl_FragColor = vary_color;
-    gl_FragColor[0] += vary_texcoord[0];
+    if ( texture_enable ) {
+        gl_FragColor = texture2D(texture_sampler, vary_texcoord);
+    }
+    else {
+        gl_FragColor = vary_color;
+    }
 }
 "#;

@@ -364,8 +364,11 @@ impl<T: FromStr + Float + FromPrimitive + ToPrimitive> Mesh<T> {
 
                 _ => {
                     // エラー
-//                  println!("{}[{}]: format error: {}", filename, line_num, text);
-                    return Err(format!("{}[{}]:Format error\n{}\n", filename, line_num, text));
+                    //                  println!("{}[{}]: format error: {}", filename, line_num, text);
+                    return Err(format!(
+                        "{}[{}]:Format error\n{}\n",
+                        filename, line_num, text
+                    ));
                 }
             }
         }
@@ -445,6 +448,8 @@ impl<T: FromStr + Float + FromPrimitive + ToPrimitive> Mesh<T> {
                     mat.specular.z = parse_number::<T>(args[2], line_num)?;
                 }
 
+                ("Ke", 3) => {}
+
                 ("Ns", 1) => {
                     mat.shininess = parse_number::<T>(args[0], line_num)?;
                 }
@@ -467,35 +472,37 @@ impl<T: FromStr + Float + FromPrimitive + ToPrimitive> Mesh<T> {
 
                 ("map_Ns", 1) => {}
 
-                ("map_d", 1) => {}  // lpha texture map
+                ("map_d", 1) => {} // lpha texture map
 
                 ("illum", 1) => {}
 
                 ("map_bump", 1) | ("bump", 1) => {
                     mat.bumpmap_filename = args[0].to_string();
                 }
-                
-                ("disp", 1) => {} // displacement map
+
+                ("disp", 1) => {}   // displacement map
                 ("decal ", 1) => {} // stencil decal texture
 
                 ("Ni", _) => {} //optical density
                 ("Tf", _) => {} // Transmission Filter Color
 
-                ("Pr", 1) | ("map_Pr", 1) => {}    // roughness
-                ("Pm", 1) | ("map_Pm", 1) => {}    // metallic
-                ("Ps", 1) | ("map_Ps", 1) => {}    // sheen
-                ("Pc", _) => {}    // clearcoat thickness
-                ("Pcr", _) => {}    // clearcoat roughness
-                ("ke", 1) | ("map_ke", 1) => {}    // emissive
-                ("aniso", 1) => {} // anisotropy
-                ("anisor", 1) => {} // anisotropy rotation
-                ("norm", 1) => {} // normal map
-
+                ("Pr", 1) | ("map_Pr", 1) => {} // roughness
+                ("Pm", 1) | ("map_Pm", 1) => {} // metallic
+                ("Ps", 1) | ("map_Ps", 1) => {} // sheen
+                ("Pc", _) => {}                 // clearcoat thickness
+                ("Pcr", _) => {}                // clearcoat roughness
+                ("map_ke", 1) => {}             // emissive
+                ("aniso", 1) => {}              // anisotropy
+                ("anisor", 1) => {}             // anisotropy rotation
+                ("norm", 1) => {}               // normal map
 
                 _ => {
                     // エラー
-//                  println!("{}[{}]: format error: {}", filename, line_num, text);
-                    return Err(format!("{}[{}]:Format error\n{}\n", filename, line_num, text));
+                    //                  println!("{}[{}]: format error: {}", filename, line_num, text);
+                    return Err(format!(
+                        "{}[{}]:Format error\n{}\n",
+                        filename, line_num, text
+                    ));
                 }
             }
         }
