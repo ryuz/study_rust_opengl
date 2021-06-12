@@ -9,6 +9,7 @@ type Vector3 = cgmath::Vector3<f32>;
 #[allow(dead_code)]
 type Matrix4 = cgmath::Matrix4<f32>;
 
+
 // Shader
 pub struct Shader {
     pub shader: GLuint,
@@ -119,7 +120,7 @@ impl Program {
     fn get_iv(&self, pname: GLuint) -> GLint {
         let mut param: GLint = 0;
         unsafe {
-            gl::GetShaderiv(self.get(), pname, &mut param);
+            gl::GetProgramiv(self.get(), pname, &mut param);
         }
         param
     }
@@ -146,7 +147,7 @@ impl Program {
         let mut log_length: GLsizei = 0;
         unsafe {
             info_log.set_len(max_length as usize);
-            gl::GetShaderInfoLog(
+            gl::GetProgramInfoLog(
                 self.get(),
                 max_length,
                 &mut log_length,
@@ -174,6 +175,25 @@ impl Program {
             Err(program.get_info_log())
         }
     }
+
+
+    pub fn use_program(&self) {
+        unsafe {
+            gl::UseProgram(self.get())
+        }
+    }
+
+    pub fn get_uniform_location(&self, name: &str) -> GLint {
+        let cstr_name = CString::new(name.as_bytes()).unwrap();
+        unsafe {
+            gl::GetUniformLocation(self.get(), cstr_name.as_ptr())
+        }
+    }
+
+    pub fn get_attrib_location(&self, name: &str) -> GLint {
+        let cstr_name = CString::new(name.as_bytes()).unwrap();
+        unsafe {
+            gl::GetAttribLocation(self.get(), cstr_name.as_ptr())
+        }
+    }
 }
-
-

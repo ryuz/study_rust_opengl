@@ -3,7 +3,6 @@
 
 /rsc
 shader.rs
-main.rs
 
 *.bmp
 *.png
