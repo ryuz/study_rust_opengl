@@ -66,6 +66,14 @@ fn main()
     let fragment_shader = draw_gl::Shader::from_code(FRAGMENT_SHADER_CODE, gl::FRAGMENT_SHADER).unwrap();
     let program = draw_gl::Program::from_shaders(vec![vertes_shader, fragment_shader]).unwrap();
 
+    let uniform_model = program.get_uniform_location("matrix_model");
+    let uniform_view = program.get_uniform_location("matrix_view");
+    let uniform_projection = program.get_uniform_location("matrix_projection");
+    let uniform_color = program.get_uniform_location("color");
+
+    let attrib_position = program.get_attrib_location("position");
+    let attrib_normal = program.get_attrib_location("normal");
+    let attrib_texcoord = program.get_attrib_location("texcoord");
 
     // 頂点バッファ転送
     let mut vbo: u32 = 0;
@@ -81,6 +89,35 @@ fn main()
             vertex_array.as_mut_ptr() as *mut c_void,
             gl::STATIC_DRAW,
         );
+
+        gl::EnableVertexAttribArray(0);
+        gl::EnableVertexAttribArray(1);
+        gl::EnableVertexAttribArray(2);
+        gl::VertexAttribPointer(
+            attrib_position as u32,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            (3 + 3 + 2) * 4,
+            0 as *mut c_void,
+        );
+        gl::VertexAttribPointer(
+            1,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            (3 + 3 + 2) * 4,
+            (3 * 4) as *mut c_void,
+        );
+        gl::VertexAttribPointer(
+            2,
+            2,
+            gl::FLOAT,
+            gl::FALSE,
+            (3 + 3 + 2) * 4,
+            ((3 + 3) * 4) as *mut c_void,
+        );
+
         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
     }
 
@@ -138,44 +175,12 @@ fn main()
 
             // shader use matrices
             program.use_program();
-            let uniform_model = program.get_uniform_location("aModel");
-            let uniform_view = program.get_uniform_location("aView");
-            let uniform_projection = program.get_uniform_location("aProjection");
-            let uniform_color = program.get_uniform_location("aColor");
 
             gl::UniformMatrix4fv(uniform_model, 1, gl::FALSE, model_matrix.as_ptr());
             gl::UniformMatrix4fv(uniform_view, 1, gl::FALSE, view_matrix.as_ptr());
             gl::UniformMatrix4fv(uniform_projection, 1, gl::FALSE, projection_matrix.as_ptr());
 
-
             gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-            gl::EnableVertexAttribArray(0);
-            gl::EnableVertexAttribArray(1);
-            gl::EnableVertexAttribArray(2);
-            gl::VertexAttribPointer(
-                0,
-                3,
-                gl::FLOAT,
-                gl::FALSE,
-                (3 + 3 + 2) * 4,
-                0 as *mut c_void,
-            );
-            gl::VertexAttribPointer(
-                1,
-                3,
-                gl::FLOAT,
-                gl::FALSE,
-                (3 + 3 + 2) * 4,
-                (3 * 4) as *mut c_void,
-            );
-            gl::VertexAttribPointer(
-                2,
-                2,
-                gl::FLOAT,
-                gl::FALSE,
-                (3 + 3 + 2) * 4,
-                ((3 + 3) * 4) as *mut c_void,
-            );
 
             let mut array_index: i32 = 0;
             for it in face_info.iter() {
@@ -208,30 +213,41 @@ fn main()
 const VERTEX_SHADER_CODE: &str = r#"
 #version 100 
 
-attribute vec3 aPosition;
+attribute vec3 position;
+attribute vec3 normal;
+attribute vec2 texcoord;
 
-uniform mat4 aModel;
-uniform mat4 aView;
-uniform mat4 aProjection;
-uniform vec3 aColor;
+uniform mat4 matrix_model;
+uniform mat4 matrix_view;
+uniform mat4 matrix_projection;
+uniform vec3 color;
 
 varying lowp vec4 vary_color;
+varying lowp vec3 vary_norm;
+varying lowp vec2 vary_texcoord;
 
 void main()
 {
-    vary_color = vec4(aColor.x, aColor.y, aColor.z, 1);
-    vec3 FragPosition = vec3(aModel * vec4(aPosition, 1.0));
-    gl_Position = aProjection * aView * vec4(FragPosition, 1.0);
+    vary_color = vec4(color.x, color.y, color.z, 1);
+    vary_norm  = normal;
+    vary_texcoord  = texcoord;
+
+    vec3 frag_position = vec3(matrix_model * vec4(position, 1.0));
+    gl_Position = matrix_projection * matrix_view * vec4(frag_position, 1.0);
 }
 "#;
+
 
 const FRAGMENT_SHADER_CODE: &str = r#"
 #version 100
 
 varying lowp vec4 vary_color;
+varying lowp vec3 vary_norm;
+varying lowp vec2 vary_texcoord;
 
 void main()
 {
     gl_FragColor = vary_color;
+    gl_FragColor[0] += vary_texcoord[0];
 }
 "#;

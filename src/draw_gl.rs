@@ -197,3 +197,15 @@ impl Program {
         }
     }
 }
+
+impl Drop for Program {
+    #[allow(dead_code)]
+    fn drop(&mut self) {
+        if self.program > 0 {
+            unsafe {
+                gl::DeleteProgram(self.program);
+            }
+        }
+    }
+}
+

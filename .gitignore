@@ -1,9 +1,6 @@
 /target
 /.vscode
 
-/rsc
-shader.rs
-
 *.bmp
 *.png
 *.tga
