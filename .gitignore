@@ -1,0 +1,12 @@
+/target
+/.vscode
+
+/rsc
+shader.rs
+main.rs
+
+*.bmp
+*.png
+*.tga
+*.obj
+*.mtl
