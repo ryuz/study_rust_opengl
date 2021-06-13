@@ -1,5 +1,3 @@
-//use std::mem;
-//use std::os::raw::c_void;
 use std::time::Duration;
 
 use cgmath::perspective;
@@ -73,77 +71,16 @@ fn main() {
     let attrib_normal = program.get_attrib_location("normal");
     let attrib_texcoord = program.get_attrib_location("texcoord");
 
-    let face_info = mesh.get_surface_info();
 
     // 頂点バッファ転送
-    //  let mut vbo: u32 = 0;
     let vertex_array_buffer = draw_gl::VertexArrayBuffer::new();
     vertex_array_buffer.buffer_data_f32(&mesh.get_vertex_array(), gl::STATIC_DRAW);
     vertex_array_buffer.vertex_attrib_pointer(attrib_position, 3, gl::FLOAT, 32, 0);
     vertex_array_buffer.vertex_attrib_pointer(attrib_normal, 3, gl::FLOAT, 32, 12);
     vertex_array_buffer.vertex_attrib_pointer(attrib_texcoord, 2, gl::FLOAT, 32, 24);
 
-    /*
-    unsafe {
-        gl::EnableVertexAttribArray(attrib_position);
-        gl::EnableVertexAttribArray(attrib_normal);
-        gl::EnableVertexAttribArray(attrib_texcoord);
-    }
-    */
-
-    /*
-    unsafe {
-        let mut vertex_array: Vec<f32> = mesh.get_vertex_array();
-
-        gl::GenBuffers(1, &mut vbo);
-
-        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-        gl::BufferData(
-            gl::ARRAY_BUFFER,
-            (vertex_array.len() * mem::size_of::<f32>()) as isize,
-            vertex_array.as_mut_ptr() as *mut c_void,
-            gl::STATIC_DRAW,
-        );
-
-        gl::EnableVertexAttribArray(attrib_position as GLuint);
-        gl::VertexAttribPointer(
-            attrib_position as GLuint,
-            3,
-            gl::FLOAT,
-            gl::FALSE,
-            (3 + 3 + 2) * 4,
-            0 as *mut c_void,
-        );
-        if attrib_normal > 0 {
-            gl::EnableVertexAttribArray(attrib_normal as GLuint);
-            gl::VertexAttribPointer(
-                attrib_normal as GLuint,
-                3,
-                gl::FLOAT,
-                gl::FALSE,
-                (3 + 3 + 2) * 4,
-                (3 * 4) as *mut c_void,
-            );
-        }
-        if attrib_texcoord > 0 {
-            gl::EnableVertexAttribArray(attrib_texcoord as GLuint);
-            gl::VertexAttribPointer(
-                attrib_texcoord as GLuint,
-                2,
-                gl::FLOAT,
-                gl::FALSE,
-                (3 + 3 + 2) * 4,
-                ((3 + 3) * 4) as *mut c_void,
-            );
-        }
-        gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-
-        // テクスチャマッピング準備
-        gl::ActiveTexture(gl::TEXTURE0);
-    }
-        */
-
     // テクスチャロード
+    let face_info = mesh.get_surface_info();
     let mut textures = draw_gl::Texturs::new();
     for (_, material_index) in &face_info {
         let material = mesh.get_matrial(*material_index);
@@ -222,7 +159,7 @@ fn main() {
                 if texture_enable {
                     // テクスチャがあればバインド
                     gl::ActiveTexture(gl::TEXTURE0);
-                    textures.get(&material.diffuse_filename).bind();
+                    textures.get(&material.diffuse_filename).bind_texture();
                     gl::TexParameteri(gl::TEXTURE_2D, gl::AUTO_GENERATE_MIPMAP, gl::TRUE as GLint);
                     gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as GLint);
                     gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as GLint);
@@ -250,6 +187,7 @@ fn main() {
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
 }
+
 
 // バーテックスシェーダー
 const VERTEX_SHADER_CODE: &str = r#"

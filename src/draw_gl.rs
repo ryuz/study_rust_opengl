@@ -22,41 +22,41 @@ impl Shader {
         shader
     }
 
-    pub fn get(&self) -> GLuint {
+    pub fn get_shader(&self) -> GLuint {
         self.shader
     }
 
-    fn get_iv(&self, pname: GLuint) -> GLint {
+    fn get_shader_iv(&self, pname: GLuint) -> GLint {
         let mut param: GLint = 0;
         unsafe {
-            gl::GetShaderiv(self.get(), pname, &mut param);
+            gl::GetShaderiv(self.get_shader(), pname, &mut param);
         }
         param
     }
 
-    pub fn source(&self, shader_code: &str) {
+    pub fn shader_source(&self, shader_code: &str) {
         let cstr_shader_code = CString::new(shader_code.as_bytes()).unwrap();
         unsafe {
-            gl::ShaderSource(self.get(), 1, &cstr_shader_code.as_ptr(), ptr::null());
+            gl::ShaderSource(self.get_shader(), 1, &cstr_shader_code.as_ptr(), ptr::null());
         }
     }
 
-    pub fn compile(&self) {
+    pub fn compile_shader(&self) {
         unsafe {
-            gl::CompileShader(self.get());
+            gl::CompileShader(self.get_shader());
         }
     }
 
-    pub fn get_info_log(&self) -> String {
+    pub fn get_shader_info_log(&self) -> String {
         // ログ領域確保
-        let max_length: GLsizei = self.get_iv(gl::INFO_LOG_LENGTH) as GLsizei;
+        let max_length: GLsizei = self.get_shader_iv(gl::INFO_LOG_LENGTH) as GLsizei;
         let mut info_log = Vec::with_capacity(max_length as usize + 1);
 
         let mut log_length: GLsizei = 0;
         unsafe {
             info_log.set_len(max_length as usize);
             gl::GetShaderInfoLog(
-                self.get(),
+                self.get_shader(),
                 max_length,
                 &mut log_length,
                 info_log.as_mut_ptr() as *mut GLchar,
@@ -69,13 +69,13 @@ impl Shader {
 
     pub fn from_code(shader_code: &str, type_: GLenum) -> Result<Self, String> {
         let shader = Shader::new(type_);
-        shader.source(shader_code);
-        shader.compile();
-        let status = shader.get_iv(gl::COMPILE_STATUS);
+        shader.shader_source(shader_code);
+        shader.compile_shader();
+        let status = shader.get_shader_iv(gl::COMPILE_STATUS);
         if status == gl::TRUE as GLint {
             Ok(shader)
         } else {
-            Err(shader.get_info_log())
+            Err(shader.get_shader_info_log())
         }
     }
 }
@@ -106,40 +106,40 @@ impl Program {
         program
     }
 
-    pub fn get(&self) -> GLuint {
+    pub fn get_program(&self) -> GLuint {
         self.program
     }
 
-    fn get_iv(&self, pname: GLuint) -> GLint {
+    fn get_program_iv(&self, pname: GLuint) -> GLint {
         let mut param: GLint = 0;
         unsafe {
-            gl::GetProgramiv(self.get(), pname, &mut param);
+            gl::GetProgramiv(self.get_program(), pname, &mut param);
         }
         param
     }
 
     pub fn attach_shader(&self, shader: Shader) {
         unsafe {
-            gl::AttachShader(self.get(), shader.get());
+            gl::AttachShader(self.get_program(), shader.get_shader());
         }
     }
 
     pub fn link(&self) {
         unsafe {
-            gl::LinkProgram(self.get());
+            gl::LinkProgram(self.get_program());
         }
     }
 
-    pub fn get_info_log(&self) -> String {
+    pub fn get_program_info_log(&self) -> String {
         // ログ領域確保
-        let max_length: GLsizei = self.get_iv(gl::INFO_LOG_LENGTH) as GLsizei;
+        let max_length: GLsizei = self.get_program_iv(gl::INFO_LOG_LENGTH) as GLsizei;
         let mut info_log = Vec::with_capacity(max_length as usize + 1);
 
         let mut log_length: GLsizei = 0;
         unsafe {
             info_log.set_len(max_length as usize);
             gl::GetProgramInfoLog(
-                self.get(),
+                self.get_program(),
                 max_length,
                 &mut log_length,
                 info_log.as_mut_ptr() as *mut GLchar,
@@ -156,26 +156,26 @@ impl Program {
             program.attach_shader(shader);
         }
         program.link();
-        let status = program.get_iv(gl::LINK_STATUS);
+        let status = program.get_program_iv(gl::LINK_STATUS);
         if status == gl::TRUE as GLint {
             Ok(program)
         } else {
-            Err(program.get_info_log())
+            Err(program.get_program_info_log())
         }
     }
 
     pub fn use_program(&self) {
-        unsafe { gl::UseProgram(self.get()) }
+        unsafe { gl::UseProgram(self.get_program()) }
     }
 
     pub fn get_uniform_location(&self, name: &str) -> GLint {
         let cstr_name = CString::new(name.as_bytes()).unwrap();
-        unsafe { gl::GetUniformLocation(self.get(), cstr_name.as_ptr()) }
+        unsafe { gl::GetUniformLocation(self.get_program(), cstr_name.as_ptr()) }
     }
 
     pub fn get_attrib_location(&self, name: &str) -> GLint {
         let cstr_name = CString::new(name.as_bytes()).unwrap();
-        unsafe { gl::GetAttribLocation(self.get(), cstr_name.as_ptr()) }
+        unsafe { gl::GetAttribLocation(self.get_program(), cstr_name.as_ptr()) }
     }
 }
 
@@ -204,20 +204,20 @@ impl Textur {
         texture
     }
 
-    pub fn get(&self) -> GLuint {
+    pub fn get_texture(&self) -> GLuint {
         self.texture
     }
 
-    pub fn bind(&self) {
+    pub fn bind_texture(&self) {
         unsafe {
-            gl::BindTexture(gl::TEXTURE_2D, self.get());
+            gl::BindTexture(gl::TEXTURE_2D, self.get_texture());
         }
     }
 
     pub fn loda_image_rgba(img: &RgbaImage) -> Self {
         let texture = Textur::new();
         unsafe {
-            texture.bind();
+            texture.bind_texture();
             gl::PixelStorei(gl::UNPACK_ALIGNMENT, 4);
             gl::TexImage2D(
                 gl::TEXTURE_2D,
