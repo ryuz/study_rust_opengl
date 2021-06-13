@@ -279,3 +279,83 @@ impl Texturs {
         }
     }
 }
+
+pub struct VertexArrayBuffer {
+    vbo: GLuint,
+}
+
+#[allow(dead_code)]
+impl VertexArrayBuffer {
+    pub fn new() -> Self {
+        let mut vertex_array = VertexArrayBuffer { vbo: 0 };
+        unsafe {
+            gl::GenBuffers(1, &mut vertex_array.vbo);
+        }
+        vertex_array
+    }
+
+    pub fn bind_buffer(&self) {
+        unsafe {
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
+        }
+    }
+
+    pub fn buffer_data_f32(&self, vertex_array: &Vec<f32>, usage: GLenum) {
+        self.bind_buffer();
+        unsafe {
+            let unit_szie = std::mem::size_of::<f32>();
+            gl::BufferData(
+                gl::ARRAY_BUFFER,
+                (vertex_array.len() * unit_szie) as isize,
+                vertex_array.as_ptr() as *mut c_void,
+                usage,
+            );
+        }
+    }
+
+    pub fn vertex_attrib_pointer(
+        &self,
+        index: GLint,
+        size: GLint,
+        type_: GLenum,
+        stride: GLsizei,
+        offset: GLsizei,
+    ) {
+        if index >= 0 {
+            self.bind_buffer();
+            unsafe {
+                gl::VertexAttribPointer(
+                    index as GLuint,
+                    size,
+                    type_,
+                    gl::FALSE,
+                    stride,
+                    offset as *mut c_void,
+                );
+                gl::EnableVertexAttribArray(index as GLuint);
+            }
+        }
+    }
+
+    /*
+    pub fn enable_vertex_attrib_array(&self, index: GLint) {
+        if index >= 0 {
+            self.bind_buffer();
+            unsafe {
+                gl::EnableVertexAttribArray(index as GLuint);
+            }
+        }
+    }
+    */
+}
+
+impl Drop for VertexArrayBuffer {
+    #[allow(dead_code)]
+    fn drop(&mut self) {
+        if self.vbo > 0 {
+            unsafe {
+                gl::DeleteBuffers(1, &mut self.vbo);
+            }
+        }
+    }
+}

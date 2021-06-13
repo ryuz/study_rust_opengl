@@ -1,5 +1,5 @@
-use std::mem;
-use std::os::raw::c_void;
+//use std::mem;
+//use std::os::raw::c_void;
 use std::time::Duration;
 
 use cgmath::perspective;
@@ -73,10 +73,25 @@ fn main() {
     let attrib_normal = program.get_attrib_location("normal");
     let attrib_texcoord = program.get_attrib_location("texcoord");
 
-    // 頂点バッファ転送
-    let mut vbo: u32 = 0;
-
     let face_info = mesh.get_surface_info();
+
+    // 頂点バッファ転送
+    //  let mut vbo: u32 = 0;
+    let vertex_array_buffer = draw_gl::VertexArrayBuffer::new();
+    vertex_array_buffer.buffer_data_f32(&mesh.get_vertex_array(), gl::STATIC_DRAW);
+    vertex_array_buffer.vertex_attrib_pointer(attrib_position, 3, gl::FLOAT, 32, 0);
+    vertex_array_buffer.vertex_attrib_pointer(attrib_normal, 3, gl::FLOAT, 32, 12);
+    vertex_array_buffer.vertex_attrib_pointer(attrib_texcoord, 2, gl::FLOAT, 32, 24);
+
+    /*
+    unsafe {
+        gl::EnableVertexAttribArray(attrib_position);
+        gl::EnableVertexAttribArray(attrib_normal);
+        gl::EnableVertexAttribArray(attrib_texcoord);
+    }
+    */
+
+    /*
     unsafe {
         let mut vertex_array: Vec<f32> = mesh.get_vertex_array();
 
@@ -126,6 +141,7 @@ fn main() {
         // テクスチャマッピング準備
         gl::ActiveTexture(gl::TEXTURE0);
     }
+        */
 
     // テクスチャロード
     let mut textures = draw_gl::Texturs::new();
@@ -193,15 +209,16 @@ fn main() {
             gl::UniformMatrix4fv(uniform_projection, 1, gl::FALSE, projection_matrix.as_ptr());
             gl::Uniform1i(uniform_texture_sampler, 0);
 
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+            //            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+            vertex_array_buffer.bind_buffer();
 
             let mut array_index: i32 = 0;
             for (array_size, material_index) in &face_info {
                 let material = mesh.get_matrial(*material_index);
 
                 let texture_enable = !&material.diffuse_filename.is_empty();
-                gl::Uniform1i(uniform_texture_enable, if texture_enable {1} else {0});
-                
+                gl::Uniform1i(uniform_texture_enable, if texture_enable { 1 } else { 0 });
+
                 if texture_enable {
                     // テクスチャがあればバインド
                     gl::ActiveTexture(gl::TEXTURE0);
@@ -231,10 +248,6 @@ fn main() {
         }
 
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
-    }
-
-    unsafe {
-        gl::DeleteBuffers(1, &mut vbo);
     }
 }
 
